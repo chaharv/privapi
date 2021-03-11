@@ -77,4 +77,4 @@ name_type_to_gen = {'string':
                         }
                     }
 
-exclusions = [".*amazonaws.com"]
+exclusions = [".*chahar.com"]

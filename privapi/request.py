@@ -78,7 +78,6 @@ class FakeRequestGenerator(object):
         self.renderer = FakeRequestRenderer()
         self.reqhandler = reqhandler
 
-
     def _apis_to_requests(self):
         for dirpath, dirs, files in os.walk(self.folder):
             descriptors = [fi for fi in files if 'swagger.yaml' or 'swagger.json' in fi]
@@ -88,13 +87,18 @@ class FakeRequestGenerator(object):
                     if re.match(ex, fname) is None:
                         print(('Generating {:s}...').format(fname))
                         try:
-                            self._api_to_requests(fname)
+                            org = ""
+                            components = dirpath.split("/")
+                            if len(components) >= 4:
+                                org = components[3]
+                            self._api_to_requests(fname,org)
                             print(('Generated {:s}.').format(fname))
                         except Exception as e:
                             pass
 
-    def _api_to_requests(self, fname):
+    def _api_to_requests(self, fname, org):
         self.app = App.create(fname)
+        self.org = org
         s = Scanner(self.app)
         s.scan(route=[self], root=self.app.raw)
 
@@ -109,10 +113,10 @@ class FakeRequestGenerator(object):
         json_req_obj = {k: v for k, v in json_req_obj.items() if k if v}
         if not bool(json_req_obj):
             return
-
+        #json_req_obj["scanned_org"] = self.org
         x = Xeger(limit=10)
         r = name_type_to_gen.get("string", None)
-        self.reqhandler(json.dumps(json_req_obj, cls=PrivapiEncoder), is_pii)
+        self.reqhandler(json.dumps(json_req_obj, cls=PrivapiEncoder), is_pii, self.org)
         if is_pii and r:
             for i in range(2):
                 for regex in random.sample(r.keys(), round(len(r.keys()) * .1)):
@@ -124,7 +128,8 @@ class FakeRequestGenerator(object):
                     n_json_req = json.dumps(n_fr, cls=PrivapiEncoder)
                     n_json_req_obj = json.loads(n_json_req)
                     n_json_req_obj[rn] = rv
-                    self.reqhandler(json.dumps(n_json_req_obj, cls=PrivapiEncoder), is_pii)
+                    #n_json_req_obj["scanned_org"] = self.org
+                    self.reqhandler(json.dumps(n_json_req_obj, cls=PrivapiEncoder), is_pii, self.org)
         self.renderer.pii_classified.clear()
 
 def print_request(targetdir, request):
@@ -136,8 +141,8 @@ def save_request(targetdir, request, has_pii):
     with open(filename, 'w') as f:
         f.write("%s\n" % request)
 
-def save_request_to_csv(csvfile, request, has_pii):
-        row = [request, '1' if has_pii else '0']
+def save_request_to_csv(csvfile, request, has_pii, org):
+        row = [request, '1' if has_pii else '0', org]
         csvfile.writerow(row)
 
 
